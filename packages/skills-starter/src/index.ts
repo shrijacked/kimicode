@@ -78,3 +78,7 @@ export async function importExternalSkill(sourcePath: string): Promise<SkillDocu
     sourcePath
   };
 }
+
+export function findSkillByCommand(pack: SkillPackManifest, command: string): SkillDocument | undefined {
+  return pack.skills.find((skill) => skill.metadata.command === command);
+}

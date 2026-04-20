@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
-import type { KimicodeConfig, ProviderMessage, SessionRecord, SessionSnapshot, SessionStatus, TranscriptEvent } from "./types.js";
+import type { ExportedSession, KimicodeConfig, ProviderMessage, SessionRecord, SessionSnapshot, SessionStatus, TranscriptEvent } from "./types.js";
 import { TranscriptStore } from "./transcript.js";
 import { SessionIndex } from "./session-index.js";
 
@@ -104,6 +104,10 @@ export class SessionManager {
     return this.index.list(limit);
   }
 
+  public latestSessionId(): string | null {
+    return this.index.list(1)[0]?.sessionId ?? null;
+  }
+
   public async loadSession(sessionId: string): Promise<SessionSnapshot | null> {
     const record = this.index.get(sessionId);
 
@@ -151,5 +155,20 @@ export class SessionManager {
     }
 
     return snapshot;
+  }
+
+  public async exportSession(sessionId: string): Promise<ExportedSession | null> {
+    const session = await this.loadSession(sessionId);
+
+    if (!session) {
+      return null;
+    }
+
+    const transcript = new TranscriptStore(session.transcriptPath);
+
+    return {
+      session,
+      transcript: await transcript.readAll()
+    };
   }
 }

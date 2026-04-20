@@ -160,6 +160,11 @@ export interface SessionSnapshot extends SessionRecord {
   pendingApproval?: ApprovalRequest | null;
 }
 
+export interface ExportedSession {
+  session: SessionSnapshot;
+  transcript: TranscriptEvent[];
+}
+
 export interface SkillMetadata {
   name: string;
   slug: string;

@@ -2,7 +2,7 @@ import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { createTempWorkspace } from "@kimicode/testkit";
-import { importExternalSkill, loadStarterSkills } from "./index.js";
+import { findSkillByCommand, importExternalSkill, loadStarterSkills } from "./index.js";
 
 describe("starter skills", () => {
   it("loads the curated starter skill pack", async () => {
@@ -32,5 +32,12 @@ This is an imported skill.
     const skill = await importExternalSkill(skillPath);
     expect(skill.metadata.command).toBe("/external-review");
     expect(skill.body).toContain("imported skill");
+  });
+
+  it("finds a starter skill by slash command", async () => {
+    const pack = await loadStarterSkills();
+    const skill = findSkillByCommand(pack, "/review");
+
+    expect(skill?.metadata.name).toBe("Code Review");
   });
 });

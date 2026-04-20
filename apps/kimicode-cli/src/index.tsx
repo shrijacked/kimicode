@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import { createInterface } from "node:readline/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import process from "node:process";
 import { render } from "ink";
 import React from "react";
@@ -10,6 +12,7 @@ import { ToolManager } from "@kimicode/tools";
 import { loadStarterSkills } from "@kimicode/skills-starter";
 import { App } from "./components/App.js";
 import { KimicodeRuntime } from "@kimicode/core";
+import { routePromptInput } from "./runtime-input.js";
 
 interface RuntimeState {
   sessionId: string;
@@ -50,21 +53,73 @@ async function runInteractivePrompt(): Promise<string> {
   return prompt.trim();
 }
 
-async function executePrompt(prompt: string, modelIdOverride?: string): Promise<void> {
+const buildConfigTemplate = (): string =>
+  JSON.stringify(
+    {
+      defaultModel: "kimi-k2.6",
+      approvalMode: "workspace-write",
+      enableBuiltinTools: false,
+      maxToolSteps: 6
+    },
+    null,
+    2
+  );
+
+async function ensureConfigFile(force = false): Promise<string> {
+  const config = await loadKimicodeConfig();
+  const configPath = join(config.cwd, "kimicode.config.json");
+
+  if (!force) {
+    try {
+      await readFile(configPath, "utf8");
+      return configPath;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+        throw error;
+      }
+    }
+  }
+
+  await mkdir(dirname(configPath), { recursive: true });
+  await writeFile(configPath, `${buildConfigTemplate()}\n`, "utf8");
+  return configPath;
+}
+
+interface ExecutePromptOptions {
+  modelIdOverride?: string;
+  sessionId?: string;
+}
+
+async function executePrompt(prompt: string, options: ExecutePromptOptions = {}): Promise<void> {
   const config = await loadKimicodeConfig();
   const registry = new ModelRegistry();
-  const model = registry.resolve(modelIdOverride ?? config.defaultModel);
+  const skillPack = await loadStarterSkills();
   const sessions = await SessionManager.create(config);
+  const sessionCount = sessions.listSessions(5).length;
+  const route = routePromptInput(prompt, {
+    cwd: config.cwd,
+    storageDir: config.storageDir,
+    approvalMode: config.approvalMode,
+    defaultModelId: config.defaultModel,
+    sessionCount,
+    models: registry.list(),
+    skillPack
+  });
+
+  if (route.kind === "local") {
+    console.log(route.output);
+    return;
+  }
+
+  const model = registry.resolve(route.modelId ?? options.modelIdOverride ?? config.defaultModel);
   const provider = new MoonshotProvider({
     apiKey: requireApiKey()
   });
   const tools = new ToolManager(config);
-  await loadStarterSkills();
-
   const runtime = new KimicodeRuntime(config, registry, provider, sessions, tools);
 
   const state: RuntimeState = {
-    sessionId: "pending",
+    sessionId: options.sessionId ?? "pending",
     modelId: model.id,
     thinkingEnabled: model.defaultThinking,
     output: "",
@@ -104,13 +159,16 @@ async function executePrompt(prompt: string, modelIdOverride?: string): Promise<
     state.status = "running";
     rerender();
 
-    const result = await runtime.runTask(
-      {
-        prompt,
-        modelId: model.id,
-        stream: true
-      },
-      {
+    const runTaskOptions = {
+      prompt: route.prompt,
+      modelId: model.id,
+      stream: true,
+      ...(options.sessionId ? { sessionId: options.sessionId } : {}),
+      ...(route.systemPrompt ? { systemPrompt: route.systemPrompt } : {}),
+      ...(route.title ? { title: route.title } : {})
+    };
+
+    const result = await runtime.runTask(runTaskOptions, {
         onToken: (token) => {
           state.output += token;
           rerender();
@@ -155,6 +213,7 @@ async function printModels(): Promise<void> {
 async function printDoctor(): Promise<void> {
   const config = await loadKimicodeConfig();
   const sessions = await SessionManager.create(config);
+  const skillPack = await loadStarterSkills();
   const record = {
     node: process.version,
     cwd: config.cwd,
@@ -163,6 +222,7 @@ async function printDoctor(): Promise<void> {
     approvalMode: config.approvalMode,
     hasMoonshotApiKey: Boolean(process.env.MOONSHOT_API_KEY),
     knownSlashCommands: BUILTIN_SLASH_COMMANDS.map((command) => command.command),
+    starterSkillCount: skillPack.skills.length,
     indexedSessions: sessions.listSessions(5).length
   };
   console.log(JSON.stringify(record, null, 2));
@@ -176,7 +236,7 @@ async function printConfig(): Promise<void> {
 async function printResume(sessionId?: string): Promise<void> {
   const config = await loadKimicodeConfig();
   const sessions = await SessionManager.create(config);
-  const resolvedSessionId = sessionId ?? sessions.listSessions(1)[0]?.sessionId;
+  const resolvedSessionId = sessionId ?? sessions.latestSessionId();
 
   if (!resolvedSessionId) {
     console.log("No saved sessions found.");
@@ -206,22 +266,66 @@ async function printResume(sessionId?: string): Promise<void> {
   );
 }
 
+async function exportSession(sessionId?: string, outputPath?: string): Promise<void> {
+  const config = await loadKimicodeConfig();
+  const sessions = await SessionManager.create(config);
+  const resolvedSessionId = sessionId ?? sessions.latestSessionId();
+
+  if (!resolvedSessionId) {
+    console.log("No saved sessions found.");
+    return;
+  }
+
+  const exported = await sessions.exportSession(resolvedSessionId);
+  if (!exported) {
+    console.log(`Session not found: ${resolvedSessionId}`);
+    return;
+  }
+
+  const payload = JSON.stringify(exported, null, 2);
+  if (!outputPath) {
+    console.log(payload);
+    return;
+  }
+
+  const absolutePath = join(config.cwd, outputPath);
+  await mkdir(dirname(absolutePath), { recursive: true });
+  await writeFile(absolutePath, `${payload}\n`, "utf8");
+  console.log(`Exported session ${resolvedSessionId} to ${absolutePath}`);
+}
+
 const cli = cac("kimicode");
 
 cli
   .command("run [...task]", "Run a prompt in Kimicode")
   .option("--model <model>", "Override the model for this run")
-  .action(async (task: string[], options: { model?: string }) => {
+  .option("--session <sessionId>", "Continue an existing session")
+  .action(async (task: string[], options: { model?: string; session?: string }) => {
     const prompt = task.join(" ").trim();
     if (!prompt) {
       throw new Error("kimicode run requires a task string.");
     }
-    await executePrompt(prompt, options.model);
+    await executePrompt(prompt, {
+      ...(options.model ? { modelIdOverride: options.model } : {}),
+      ...(options.session ? { sessionId: options.session } : {})
+    });
   });
 
-cli.command("resume [sessionId]", "Resume a previous session").action(async (sessionId?: string) => {
-  await printResume(sessionId);
-});
+cli
+  .command("resume [sessionId]", "Resume a previous session")
+  .option("--continue <prompt>", "Continue the session with a new prompt")
+  .option("--model <model>", "Override the model for the continued run")
+  .action(async (sessionId: string | undefined, options: { continue?: string; model?: string }) => {
+    if (options.continue) {
+      await executePrompt(options.continue, {
+        ...(options.model ? { modelIdOverride: options.model } : {}),
+        ...(sessionId ? { sessionId } : {})
+      });
+      return;
+    }
+
+    await printResume(sessionId);
+  });
 
 cli.command("models", "List available models").action(async () => {
   await printModels();
@@ -231,9 +335,28 @@ cli.command("doctor", "Inspect local configuration and environment").action(asyn
   await printDoctor();
 });
 
-cli.command("config", "Print effective configuration").action(async () => {
-  await printConfig();
-});
+cli
+  .command("config [action]", "Print effective configuration or initialize a project config")
+  .option("--force", "Overwrite an existing config file")
+  .action(async (action: string | undefined, options: { force?: boolean }) => {
+    if (!action) {
+      await printConfig();
+      return;
+    }
+
+    if (action !== "init") {
+      throw new Error(`Unknown config action: ${action}`);
+    }
+
+    const configPath = await ensureConfigFile(Boolean(options.force));
+    console.log(`Wrote ${configPath}`);
+  });
+
+cli
+  .command("export [sessionId] [outputPath]", "Export a saved session transcript")
+  .action(async (sessionId?: string, outputPath?: string) => {
+    await exportSession(sessionId, outputPath);
+  });
 
 cli.help();
 cli.version("0.1.0");
