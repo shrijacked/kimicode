@@ -1,0 +1,24 @@
+{
+  "name": "kimicode",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "kimicode": "dist/index.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsup src/index.tsx --format esm --dts --out-dir dist --clean",
+    "dev": "tsup src/index.tsx --watch --format esm --dts --out-dir dist",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@kimicode/core": "workspace:*",
+    "@kimicode/provider-moonshot": "workspace:*",
+    "@kimicode/skills-starter": "workspace:*",
+    "@kimicode/tools": "workspace:*",
+    "cac": "^6.7.14",
+    "ink": "^5.2.1",
+    "react": "^18.3.1"
+  }
+}

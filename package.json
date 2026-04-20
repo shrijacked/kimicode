@@ -1,0 +1,33 @@
+{
+  "name": "kimicode-workspace",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Kimicode is a Kimi-first coding agent CLI built for Moonshot models.",
+  "packageManager": "pnpm@10.8.1",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev": "pnpm --filter kimicode dev",
+    "lint": "eslint . --ignore-pattern '**/dist/**'",
+    "format": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:live": "vitest run tests/live",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.24.0",
+    "@types/node": "^22.15.2",
+    "@types/react": "^18.3.12",
+    "eslint": "^9.24.0",
+    "globals": "^16.0.0",
+    "prettier": "^3.5.3",
+    "tsup": "^8.4.0",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.29.1",
+    "vitest": "^3.1.2"
+  }
+}
