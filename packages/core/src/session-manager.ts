@@ -85,8 +85,15 @@ export class SessionManager {
     session.updatedAt = timestamp;
   }
 
-  public async appendMessage(session: SessionSnapshot, role: "user" | "assistant" | "tool", message: ProviderMessage): Promise<void> {
-    const type = role === "user" ? "user.message" : role === "assistant" ? "assistant.message" : "tool.result";
+  public async appendMessage(session: SessionSnapshot, role: "system" | "user" | "assistant" | "tool", message: ProviderMessage): Promise<void> {
+    const type =
+      role === "system"
+        ? "system.message"
+        : role === "user"
+          ? "user.message"
+          : role === "assistant"
+            ? "assistant.message"
+            : "tool.result";
     await this.appendEvent(session, type, { message });
     session.messages.push(message);
 
@@ -122,7 +129,13 @@ export class SessionManager {
     let pendingApproval: SessionSnapshot["pendingApproval"] = null;
 
     for (const event of events) {
-      if ((event.type === "user.message" || event.type === "assistant.message" || event.type === "tool.result") && isProviderMessage(event.data.message)) {
+      if (
+        (event.type === "system.message" ||
+          event.type === "user.message" ||
+          event.type === "assistant.message" ||
+          event.type === "tool.result") &&
+        isProviderMessage(event.data.message)
+      ) {
         messages.push(event.data.message);
       }
 

@@ -29,5 +29,14 @@ flowchart TD
 
 - Transcripts: `.kimicode/sessions/<session-id>/transcript.jsonl`
 - Session index: `.kimicode/session-index.sqlite`
+- Transcript events include the persisted system prompt, user turns, assistant turns, tool calls, tool results, approvals, warnings, and completion status
 
 The transcript is the source of truth. The SQLite index makes listing and resuming sessions fast.
+
+## Command surface
+
+- `kimicode run "<task>"` starts a new task, and `--session <id>` continues an existing session
+- `kimicode resume [session-id]` inspects the latest or requested session, and `--continue "<prompt>"` resumes execution
+- `kimicode config init` writes a starter project config without requiring an API key
+- `kimicode export [session-id] [output-path]` emits a serialized session snapshot plus its full transcript
+- Slash commands are routed before provider execution so local commands like `/status` and `/model` work without hitting the API

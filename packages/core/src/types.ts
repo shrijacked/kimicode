@@ -123,6 +123,7 @@ export interface TranscriptEvent {
   type:
     | "session.started"
     | "session.completed"
+    | "system.message"
     | "user.message"
     | "assistant.message"
     | "assistant.delta"

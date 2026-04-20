@@ -49,10 +49,32 @@ pnpm test
 
 - `kimicode`
 - `kimicode run "fix the failing build"`
+- `kimicode run "continue this plan" --session <session-id>`
 - `kimicode resume`
+- `kimicode resume <session-id> --continue "take the next step"`
 - `kimicode models`
 - `kimicode doctor`
 - `kimicode config`
+- `kimicode config init`
+- `kimicode export [session-id] [output-path]`
+
+Slash commands inside the prompt surface:
+
+- `/plan`
+- `/tdd`
+- `/review`
+- `/debug`
+- `/docs`
+- `/model`
+- `/status`
+- `/clear`
+
+## Sessions
+
+- Every run writes an append-only transcript at `.kimicode/sessions/<session-id>/transcript.jsonl`
+- The session index lives at `.kimicode/session-index.sqlite`
+- System prompts are persisted with the transcript so resumed sessions keep the same workflow framing
+- `kimicode export` prints a session snapshot plus transcript JSON, or writes it to a path you choose
 
 ## Configuration
 

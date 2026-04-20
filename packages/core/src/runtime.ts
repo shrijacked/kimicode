@@ -50,10 +50,11 @@ export class KimicodeRuntime {
       (await this.sessions.createSession(model.id, (options.title ?? options.prompt.slice(0, 80)) || "Kimicode session"));
 
     if (session.messages.length === 0) {
-      session.messages.push({
+      const systemMessage: ProviderMessage = {
         role: "system",
         content: options.systemPrompt ?? DEFAULT_SYSTEM_PROMPT
-      });
+      };
+      await this.sessions.appendMessage(session, "system", systemMessage);
     }
 
     const userMessage: ProviderMessage = {

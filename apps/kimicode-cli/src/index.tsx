@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { createInterface } from "node:readline/promises";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import process from "node:process";
 import { render } from "ink";
 import React from "react";
@@ -288,7 +288,7 @@ async function exportSession(sessionId?: string, outputPath?: string): Promise<v
     return;
   }
 
-  const absolutePath = join(config.cwd, outputPath);
+  const absolutePath = resolve(config.cwd, outputPath);
   await mkdir(dirname(absolutePath), { recursive: true });
   await writeFile(absolutePath, `${payload}\n`, "utf8");
   console.log(`Exported session ${resolvedSessionId} to ${absolutePath}`);

@@ -60,4 +60,62 @@ describe("golden runtime flow", () => {
     expect(resumed?.messages.length).toBeGreaterThanOrEqual(4);
     expect(resumed?.lastAssistantMessage).toContain("Project title");
   });
+
+  it("persists the system prompt across resumed runs", async () => {
+    const cwd = await createTempWorkspace();
+
+    const config: KimicodeConfig = {
+      cwd,
+      storageDir: join(cwd, ".kimicode"),
+      defaultModel: "kimi-k2.6",
+      approvalMode: "workspace-write",
+      enableBuiltinTools: false,
+      maxToolSteps: 4
+    };
+
+    const registry = new ModelRegistry();
+    const sessions = await SessionManager.create(config);
+    const tools = new ToolManager(config);
+    const provider = new FakeProvider([
+      {
+        modelId: "kimi-k2.6",
+        message: {
+          role: "assistant",
+          content: "First pass complete."
+        },
+        warnings: []
+      },
+      {
+        modelId: "kimi-k2.6",
+        message: {
+          role: "assistant",
+          content: "Second pass complete."
+        },
+        warnings: []
+      }
+    ]);
+
+    const runtime = new KimicodeRuntime(config, registry, provider, sessions, tools);
+    const first = await runtime.runTask({
+      prompt: "Inspect the workspace.",
+      stream: false
+    });
+
+    await runtime.runTask({
+      prompt: "Continue from the previous session.",
+      sessionId: first.session.sessionId,
+      stream: false
+    });
+
+    const resumed = await sessions.loadSession(first.session.sessionId);
+
+    expect(resumed?.messages[0]?.role).toBe("system");
+    expect(resumed?.messages.map((message) => message.role)).toEqual([
+      "system",
+      "user",
+      "assistant",
+      "user",
+      "assistant"
+    ]);
+  });
 });
