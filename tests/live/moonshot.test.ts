@@ -2,11 +2,58 @@ import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { KimicodeRuntime, ModelRegistry, SessionManager, type KimicodeConfig } from "@kimicode/core";
-import { MoonshotProvider } from "@kimicode/provider-moonshot";
+import { MoonshotOfficialToolClient, MoonshotProvider } from "@kimicode/provider-moonshot";
 import { createTempWorkspace } from "@kimicode/testkit";
 import { ToolManager } from "@kimicode/tools";
 
 const maybeApiKey = process.env.MOONSHOT_API_KEY;
+
+const buildSmokeArguments = (schema: Record<string, unknown>): Record<string, unknown> => {
+  const properties = (schema.properties as Record<string, Record<string, unknown>> | undefined) ?? {};
+  const required = (schema.required as string[] | undefined) ?? [];
+  const output: Record<string, unknown> = {};
+
+  for (const field of required) {
+    const descriptor = properties[field] ?? {};
+    const type = descriptor.type;
+
+    if (/timezone/i.test(field)) {
+      output[field] = "UTC";
+      continue;
+    }
+
+    if (/url/i.test(field)) {
+      output[field] = "https://example.com";
+      continue;
+    }
+
+    if (/query|search/i.test(field)) {
+      output[field] = "current UTC time";
+      continue;
+    }
+
+    switch (type) {
+      case "string":
+        output[field] = "kimicode";
+        break;
+      case "integer":
+      case "number":
+        output[field] = 1;
+        break;
+      case "boolean":
+        output[field] = false;
+        break;
+      case "array":
+        output[field] = [];
+        break;
+      default:
+        output[field] = {};
+        break;
+    }
+  }
+
+  return output;
+};
 
 describe.skipIf(!maybeApiKey)("live Moonshot smoke", () => {
   it("completes a basic Kimi request", async () => {
@@ -139,6 +186,21 @@ describe.skipIf(!maybeApiKey)("live Moonshot smoke", () => {
     expect(typeof second.assistantText).toBe("string");
     expect(second.assistantText.toLowerCase()).toContain("beta");
     expect(resumed?.messages.length).toBeGreaterThanOrEqual(5);
+  }, 60_000);
+
+  it("loads and executes an official formula tool", async () => {
+    const client = new MoonshotOfficialToolClient({
+      apiKey: maybeApiKey as string
+    });
+
+    const tools = await client.loadTools(["moonshot/date:latest"]);
+    expect(tools.length).toBeGreaterThan(0);
+
+    const tool = tools[0];
+    const result = await client.callTool(tool, JSON.stringify(buildSmokeArguments(tool.inputSchema)));
+
+    expect(typeof result).toBe("string");
+    expect(result.length).toBeGreaterThan(0);
   }, 60_000);
 });
 
