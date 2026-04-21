@@ -74,6 +74,7 @@ Slash commands inside the prompt surface:
 - Every run writes an append-only transcript at `.kimicode/sessions/<session-id>/transcript.jsonl`
 - The session index lives at `.kimicode/session-index.sqlite`
 - System prompts are persisted with the transcript so resumed sessions keep the same workflow framing
+- Transcript reads recover valid events when a run is interrupted mid-line, so partial tail corruption does not discard the whole session
 - `kimicode export` prints a session snapshot plus transcript JSON, or writes it to a path you choose
 
 ## Configuration

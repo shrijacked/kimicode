@@ -30,6 +30,7 @@ flowchart TD
 - Transcripts: `.kimicode/sessions/<session-id>/transcript.jsonl`
 - Session index: `.kimicode/session-index.sqlite`
 - Transcript events include the persisted system prompt, user turns, assistant turns, tool calls, tool results, approvals, warnings, and completion status
+- Transcript writes are append-only, and reads recover valid events if the final line is truncated by an interrupted run
 
 The transcript is the source of truth. The SQLite index makes listing and resuming sessions fast.
 
