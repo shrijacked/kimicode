@@ -76,13 +76,21 @@ describe("MoonshotProvider", () => {
     };
 
     const chunks: string[] = [];
+    const warnings: string[] = [];
     for await (const chunk of provider.stream(request)) {
       if (chunk.type === "content" && chunk.content) {
         chunks.push(chunk.content);
+      }
+
+      if (chunk.type === "warning" && chunk.message) {
+        warnings.push(chunk.message);
       }
     }
 
     expect(chunks.join("")).toBe("Hello");
     expect(calls[0]).not.toContain("$web_search");
+    expect(warnings).toEqual([
+      "Built-in web search was disabled for kimi-k2.6 because the selected model expects thinking mode to be disabled when using $web_search."
+    ]);
   });
 });

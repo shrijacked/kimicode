@@ -118,4 +118,47 @@ describe("golden runtime flow", () => {
       "assistant"
     ]);
   });
+
+  it("surfaces provider warnings during streamed runs", async () => {
+    const cwd = await createTempWorkspace();
+
+    const config: KimicodeConfig = {
+      cwd,
+      storageDir: join(cwd, ".kimicode"),
+      defaultModel: "kimi-k2.6",
+      approvalMode: "workspace-write",
+      enableBuiltinTools: false,
+      maxToolSteps: 4
+    };
+
+    const registry = new ModelRegistry();
+    const sessions = await SessionManager.create(config);
+    const tools = new ToolManager(config);
+    const provider = new FakeProvider([], [
+      {
+        type: "warning",
+        message: "Built-in web search was disabled for this session."
+      },
+      {
+        type: "content",
+        content: "Streamed answer."
+      },
+      {
+        type: "done"
+      }
+    ]);
+
+    const runtime = new KimicodeRuntime(config, registry, provider, sessions, tools);
+    const result = await runtime.runTask({
+      prompt: "Explain the runtime warnings.",
+      stream: true
+    });
+
+    expect(result.warnings).toEqual(["Built-in web search was disabled for this session."]);
+
+    const resumed = await sessions.loadSession(result.session.sessionId);
+    const transcript = await sessions.exportSession(result.session.sessionId);
+    expect(resumed?.lastAssistantMessage).toBe("Streamed answer.");
+    expect(transcript?.transcript.some((event) => event.type === "warning")).toBe(true);
+  });
 });

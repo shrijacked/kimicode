@@ -183,6 +183,7 @@ export class KimicodeRuntime {
     const toolCalls = new Map<number, AccumulatedToolCall>();
     let content = "";
     let reasoningContent = "";
+    const warnings: string[] = [];
     let usage: ProviderResponse["usage"];
 
     for await (const chunk of this.provider.stream(request)) {
@@ -193,6 +194,10 @@ export class KimicodeRuntime {
 
       if (chunk.type === "reasoning" && chunk.content) {
         reasoningContent += chunk.content;
+      }
+
+      if (chunk.type === "warning" && chunk.message) {
+        warnings.push(chunk.message);
       }
 
       if (chunk.type === "tool-call" && chunk.toolCall) {
@@ -231,7 +236,7 @@ export class KimicodeRuntime {
     const response: ProviderResponse = {
       modelId: request.model.id,
       message,
-      warnings: []
+      warnings
     };
 
     if (usage) {

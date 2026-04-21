@@ -98,8 +98,9 @@ export interface ProviderResponse {
 }
 
 export interface ProviderStreamChunk {
-  type: "content" | "reasoning" | "tool-call" | "done";
+  type: "content" | "reasoning" | "tool-call" | "warning" | "done";
   content?: string;
+  message?: string;
   toolCall?: {
     index: number;
     id?: string;

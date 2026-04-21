@@ -380,7 +380,15 @@ export class MoonshotProvider implements ProviderAdapter {
   }
 
   public async *stream(request: ProviderRequest): AsyncIterable<ProviderStreamChunk> {
-    const { body } = buildRequestBody(request);
+    const { body, warnings } = buildRequestBody(request);
+
+    for (const warning of warnings) {
+      yield {
+        type: "warning",
+        message: warning
+      };
+    }
+
     const response = await this.fetchImpl(`${this.baseUrl}/chat/completions`, {
       method: "POST",
       headers: this.headers(),
