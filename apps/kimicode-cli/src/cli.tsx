@@ -14,7 +14,7 @@ import {
   type ApprovalRequest,
   type TranscriptEvent
 } from "@kimicode/core";
-import { MoonshotProvider } from "@kimicode/provider-moonshot";
+import { MoonshotOfficialToolClient, MoonshotProvider } from "@kimicode/provider-moonshot";
 import { loadStarterSkills } from "@kimicode/skills-starter";
 import { ToolManager } from "@kimicode/tools";
 import { App } from "./components/App.js";
@@ -71,6 +71,13 @@ const buildConfigTemplate = (): string =>
       defaultModel: "kimi-k2.6",
       approvalMode: "workspace-write",
       enableBuiltinTools: false,
+      enableOfficialTools: false,
+      officialToolFormulas: [
+        "moonshot/web-search:latest",
+        "moonshot/fetch:latest",
+        "moonshot/date:latest",
+        "moonshot/code_runner:latest"
+      ],
       maxToolSteps: 6
     },
     null,
@@ -124,10 +131,20 @@ async function executePrompt(prompt: string, options: ExecutePromptOptions = {},
   }
 
   const model = registry.resolve(route.modelId ?? options.modelIdOverride ?? config.defaultModel);
+  const apiKey = requireApiKey();
   const provider = new MoonshotProvider({
-    apiKey: requireApiKey()
+    apiKey
   });
-  const tools = new ToolManager(config);
+  const officialToolClient = new MoonshotOfficialToolClient({
+    apiKey
+  });
+  const officialTools = config.enableOfficialTools
+    ? await officialToolClient.loadTools(config.officialToolFormulas)
+    : [];
+  const tools = new ToolManager(config, {
+    officialTools,
+    executeOfficialTool: async (spec, rawArguments) => officialToolClient.callTool(spec, rawArguments)
+  });
   const runtime = new KimicodeRuntime(config, registry, provider, sessions, tools);
 
   const state: RuntimeState = {
@@ -232,6 +249,8 @@ async function printDoctor(cwd?: string): Promise<void> {
     defaultModel: config.defaultModel,
     approvalMode: config.approvalMode,
     hasMoonshotApiKey: Boolean(process.env.MOONSHOT_API_KEY),
+    enableOfficialTools: config.enableOfficialTools,
+    officialToolFormulaCount: config.officialToolFormulas.length,
     knownSlashCommands: BUILTIN_SLASH_COMMANDS.map((command) => command.command),
     starterSkillCount: skillPack.skills.length,
     indexedSessions: sessions.listSessions(5).length

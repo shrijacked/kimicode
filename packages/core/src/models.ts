@@ -20,7 +20,8 @@ export const DEFAULT_MODELS: ModelManifest[] = [
       thinking: true,
       multimodal: true,
       builtinWebSearch: true,
-      builtinCodeRunner: false
+      builtinCodeRunner: false,
+      officialTools: true
     },
     constraints: DEFAULT_CONSTRAINTS
   },
@@ -37,7 +38,8 @@ export const DEFAULT_MODELS: ModelManifest[] = [
       thinking: true,
       multimodal: false,
       builtinWebSearch: true,
-      builtinCodeRunner: false
+      builtinCodeRunner: false,
+      officialTools: true
     },
     constraints: DEFAULT_CONSTRAINTS
   },
@@ -54,7 +56,8 @@ export const DEFAULT_MODELS: ModelManifest[] = [
       thinking: true,
       multimodal: false,
       builtinWebSearch: true,
-      builtinCodeRunner: false
+      builtinCodeRunner: false,
+      officialTools: true
     },
     constraints: DEFAULT_CONSTRAINTS
   },
@@ -71,7 +74,8 @@ export const DEFAULT_MODELS: ModelManifest[] = [
       thinking: false,
       multimodal: false,
       builtinWebSearch: true,
-      builtinCodeRunner: false
+      builtinCodeRunner: false,
+      officialTools: true
     },
     constraints: {
       allowedToolChoiceWhileThinking: ["auto", "none"],
@@ -92,7 +96,8 @@ export const DEFAULT_MODELS: ModelManifest[] = [
       thinking: false,
       multimodal: false,
       builtinWebSearch: true,
-      builtinCodeRunner: false
+      builtinCodeRunner: false,
+      officialTools: true
     },
     constraints: {
       allowedToolChoiceWhileThinking: ["auto", "none"],

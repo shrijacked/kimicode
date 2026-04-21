@@ -12,6 +12,8 @@ describe("loadKimicodeConfig", () => {
       JSON.stringify({
         defaultModel: "kimi-k2-thinking",
         approvalMode: "read-only",
+        enableOfficialTools: true,
+        officialToolFormulas: ["moonshot/web-search:latest", "moonshot/fetch:latest"],
         maxToolSteps: 2
       }),
       "utf8"
@@ -20,6 +22,8 @@ describe("loadKimicodeConfig", () => {
     const config = await loadKimicodeConfig(cwd);
     expect(config.defaultModel).toBe("kimi-k2-thinking");
     expect(config.approvalMode).toBe("read-only");
+    expect(config.enableOfficialTools).toBe(true);
+    expect(config.officialToolFormulas).toEqual(["moonshot/web-search:latest", "moonshot/fetch:latest"]);
     expect(config.maxToolSteps).toBe(2);
     expect(config.storageDir).toContain(".kimicode");
   });

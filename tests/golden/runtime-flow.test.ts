@@ -16,6 +16,8 @@ describe("golden runtime flow", () => {
       defaultModel: "kimi-k2.6",
       approvalMode: "workspace-write",
       enableBuiltinTools: false,
+      enableOfficialTools: false,
+      officialToolFormulas: [],
       maxToolSteps: 4
     };
 
@@ -70,6 +72,8 @@ describe("golden runtime flow", () => {
       defaultModel: "kimi-k2.6",
       approvalMode: "workspace-write",
       enableBuiltinTools: false,
+      enableOfficialTools: false,
+      officialToolFormulas: [],
       maxToolSteps: 4
     };
 
@@ -128,6 +132,8 @@ describe("golden runtime flow", () => {
       defaultModel: "kimi-k2.6",
       approvalMode: "workspace-write",
       enableBuiltinTools: false,
+      enableOfficialTools: false,
+      officialToolFormulas: [],
       maxToolSteps: 4
     };
 

@@ -74,4 +74,50 @@ describe("ToolManager", () => {
       )
     ).rejects.toThrow("Approval denied");
   });
+
+  it("lists and executes configured official tools", async () => {
+    const cwd = await createTempWorkspace();
+    const config: KimicodeConfig = {
+      cwd,
+      storageDir: join(cwd, ".kimicode"),
+      defaultModel: "kimi-k2.6",
+      approvalMode: "workspace-write",
+      enableBuiltinTools: false,
+      enableOfficialTools: true,
+      officialToolFormulas: ["moonshot/date:latest"],
+      maxToolSteps: 4
+    };
+    const manager = new ToolManager(config, {
+      officialTools: [
+        {
+          name: "date_time",
+          description: "Get the current date and time.",
+          kind: "official",
+          formulaUri: "moonshot/date:latest",
+          inputSchema: {
+            type: "object",
+            properties: {
+              timezone: { type: "string" }
+            }
+          }
+        }
+      ],
+      executeOfficialTool: async (_spec, rawArguments) => `executed:${rawArguments}`
+    });
+    const session = makeSession(cwd);
+
+    expect(manager.listToolSpecs().some((tool) => tool.name === "date_time")).toBe(true);
+
+    const result = await manager.executeToolCall(
+      "date_time",
+      JSON.stringify({ timezone: "Asia/Kolkata" }),
+      {},
+      session
+    );
+
+    expect(result).toEqual({
+      content: 'executed:{"timezone":"Asia/Kolkata"}',
+      approved: true
+    });
+  });
 });

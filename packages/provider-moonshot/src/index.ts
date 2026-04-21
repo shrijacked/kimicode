@@ -49,6 +49,27 @@ interface MoonshotErrorResponse {
   };
 }
 
+interface FormulaToolsResponse {
+  tools?: Array<{
+    type?: string;
+    function?: {
+      name?: string;
+      description?: string;
+      parameters?: Record<string, unknown>;
+    };
+  }>;
+}
+
+interface FormulaFiberResponse {
+  status?: string;
+  error?: string | { message?: string };
+  context?: {
+    output?: string;
+    encrypted_output?: string;
+    error?: string;
+  };
+}
+
 const encodeContent = (content: string | ContentPart[]): string | Array<Record<string, unknown>> => {
   if (typeof content === "string") {
     return content;
@@ -139,6 +160,20 @@ const toMoonshotTool = (tool: ToolSpec): Record<string, unknown> => {
   };
 };
 
+const normalizeFormulaUri = (formulaUri: string): string => {
+  let normalized = formulaUri.trim();
+
+  if (!normalized.includes("/")) {
+    normalized = `moonshot/${normalized}`;
+  }
+
+  if (!normalized.includes(":")) {
+    normalized = `${normalized}:latest`;
+  }
+
+  return normalized;
+};
+
 const normalizeTools = (model: ModelManifest, tools: ToolSpec[] | undefined): { tools: ToolSpec[]; warnings: string[] } => {
   if (!tools || tools.length === 0) {
     return {
@@ -225,6 +260,16 @@ const describeFailedResponse = async (response: Response, prefix: string): Promi
   const statusText = response.statusText ? ` ${response.statusText}` : "";
   const suffix = detail ? `: ${detail}` : "";
   throw new Error(`${prefix} ${response.status}${statusText}${suffix}`);
+};
+
+const describeFormulaFailure = (formulaUri: string, payload: FormulaFiberResponse): never => {
+  const detail =
+    (typeof payload.error === "string" ? payload.error : payload.error?.message) ??
+    payload.context?.error ??
+    payload.context?.output ??
+    "Unknown error";
+
+  throw new Error(`Moonshot official tool ${formulaUri} failed: ${detail}`);
 };
 
 async function* parseSseStream(response: Response): AsyncIterable<ProviderStreamChunk> {
@@ -432,6 +477,96 @@ export class MoonshotProvider implements ProviderAdapter {
     }
 
     yield* parseSseStream(response);
+  }
+
+  private headers(): Record<string, string> {
+    return {
+      Authorization: `Bearer ${this.options.apiKey}`,
+      "Content-Type": "application/json"
+    };
+  }
+}
+
+export class MoonshotOfficialToolClient {
+  private readonly fetchImpl: typeof fetch;
+  private readonly baseUrl: string;
+
+  public constructor(private readonly options: MoonshotClientOptions) {
+    this.fetchImpl = options.fetchImpl ?? fetch;
+    this.baseUrl = options.baseUrl ?? "https://api.moonshot.ai/v1";
+  }
+
+  public async loadTools(formulaUris: string[]): Promise<ToolSpec[]> {
+    const seenNames = new Map<string, string>();
+    const tools: ToolSpec[] = [];
+    const normalizedUris = [...new Set(formulaUris.map(normalizeFormulaUri))];
+
+    for (const formulaUri of normalizedUris) {
+      const response = await this.fetchImpl(`${this.baseUrl}/formulas/${formulaUri}/tools`, {
+        method: "GET",
+        headers: this.headers()
+      });
+
+      if (!response.ok) {
+        await describeFailedResponse(response, `Moonshot official tools request failed for ${formulaUri} with`);
+      }
+
+      const payload = (await response.json()) as FormulaToolsResponse;
+
+      for (const tool of payload.tools ?? []) {
+        if (tool.type !== "function" || !tool.function?.name) {
+          continue;
+        }
+
+        const duplicateSource = seenNames.get(tool.function.name);
+        if (duplicateSource) {
+          throw new Error(
+            `Moonshot official tool name conflict: ${tool.function.name} appears in both ${duplicateSource} and ${formulaUri}`
+          );
+        }
+
+        seenNames.set(tool.function.name, formulaUri);
+        tools.push({
+          name: tool.function.name,
+          description: tool.function.description ?? `Moonshot official tool from ${formulaUri}.`,
+          kind: "official",
+          formulaUri,
+          inputSchema: tool.function.parameters ?? {
+            type: "object",
+            properties: {}
+          }
+        });
+      }
+    }
+
+    return tools;
+  }
+
+  public async callTool(spec: ToolSpec, rawArguments: string): Promise<string> {
+    if (!spec.formulaUri) {
+      throw new Error(`Official tool ${spec.name} is missing its formula URI.`);
+    }
+
+    const response = await this.fetchImpl(`${this.baseUrl}/formulas/${spec.formulaUri}/fibers`, {
+      method: "POST",
+      headers: this.headers(),
+      body: JSON.stringify({
+        name: spec.name,
+        arguments: rawArguments
+      })
+    });
+
+    if (!response.ok) {
+      await describeFailedResponse(response, `Moonshot official tool call failed for ${spec.formulaUri} with`);
+    }
+
+    const payload = (await response.json()) as FormulaFiberResponse;
+
+    if (payload.status !== "succeeded") {
+      describeFormulaFailure(spec.formulaUri, payload);
+    }
+
+    return payload.context?.encrypted_output ?? payload.context?.output ?? "";
   }
 
   private headers(): Record<string, string> {

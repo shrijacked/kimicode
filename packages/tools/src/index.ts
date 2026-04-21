@@ -252,11 +252,26 @@ const walk = async (cwd: string, current = ""): Promise<string[]> => {
 const isReadOnlyShell = (command: string): boolean => READ_ONLY_SHELL_PREFIXES.some((pattern) => pattern.test(command));
 const isDangerousShell = (command: string): boolean => DANGEROUS_SHELL_PATTERNS.some((pattern) => pattern.test(command));
 
+interface ToolManagerOptions {
+  officialTools?: ToolSpec[];
+  executeOfficialTool?: (spec: ToolSpec, rawArguments: string) => Promise<string>;
+}
+
 export class ToolManager {
-  public constructor(private readonly config: KimicodeConfig) {}
+  private readonly officialTools: ToolSpec[];
+
+  public constructor(
+    private readonly config: KimicodeConfig,
+    private readonly options: ToolManagerOptions = {}
+  ) {
+    this.officialTools = options.officialTools ?? [];
+  }
 
   public listToolSpecs(): ToolSpec[] {
-    return this.config.enableBuiltinTools ? [...toolSpecs, builtinTool] : [...toolSpecs];
+    const builtin = this.config.enableBuiltinTools ? [builtinTool] : [];
+    const official = this.config.enableOfficialTools ? this.officialTools : [];
+
+    return [...toolSpecs, ...builtin, ...official];
   }
 
   public async executeToolCall(
@@ -280,6 +295,17 @@ export class ToolManager {
     }
 
     await this.enforcePermissions(spec, input, hooks, session);
+
+    if (spec.kind === "official") {
+      if (!this.options.executeOfficialTool) {
+        throw new Error(`Official tool execution is not configured for ${spec.name}.`);
+      }
+
+      return {
+        content: await this.options.executeOfficialTool(spec, rawArguments),
+        approved: true
+      };
+    }
 
     switch (callName) {
       case "read_file":

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ModelRegistry, type ProviderRequest } from "@kimicode/core";
-import { MoonshotProvider } from "./index.js";
+import { MoonshotOfficialToolClient, MoonshotProvider } from "./index.js";
 
 describe("MoonshotProvider", () => {
   it("maps a completion response into provider output", async () => {
@@ -156,5 +156,119 @@ describe("MoonshotProvider", () => {
     };
 
     await expect(collect()).rejects.toThrow("Moonshot streaming request failed with 401 Unauthorized: Invalid API key");
+  });
+});
+
+describe("MoonshotOfficialToolClient", () => {
+  it("loads official tools from formula URIs and normalizes shorthand inputs", async () => {
+    const calls: string[] = [];
+    const client = new MoonshotOfficialToolClient({
+      apiKey: "test-key",
+      fetchImpl: async (input) => {
+        calls.push(String(input));
+        return new Response(
+          JSON.stringify({
+            tools: [
+              {
+                type: "function",
+                function: {
+                  name: "web_search",
+                  description: "Search the web",
+                  parameters: {
+                    type: "object",
+                    properties: {
+                      query: {
+                        type: "string"
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          })
+        );
+      }
+    });
+
+    const tools = await client.loadTools(["web-search"]);
+
+    expect(calls).toEqual(["https://api.moonshot.ai/v1/formulas/moonshot/web-search:latest/tools"]);
+    expect(tools).toEqual([
+      {
+        name: "web_search",
+        description: "Search the web",
+        kind: "official",
+        formulaUri: "moonshot/web-search:latest",
+        inputSchema: {
+          type: "object",
+          properties: {
+            query: {
+              type: "string"
+            }
+          }
+        }
+      }
+    ]);
+  });
+
+  it("rejects official tool name conflicts across formulas", async () => {
+    const client = new MoonshotOfficialToolClient({
+      apiKey: "test-key",
+      fetchImpl: async () =>
+        new Response(
+          JSON.stringify({
+            tools: [
+              {
+                type: "function",
+                function: {
+                  name: "shared_tool",
+                  description: "Conflict",
+                  parameters: {
+                    type: "object",
+                    properties: {}
+                  }
+                }
+              }
+            ]
+          })
+        )
+    });
+
+    await expect(client.loadTools(["moonshot/fetch:latest", "moonshot/date:latest"])).rejects.toThrow(
+      "Moonshot official tool name conflict: shared_tool appears in both moonshot/fetch:latest and moonshot/date:latest"
+    );
+  });
+
+  it("executes official tools and prefers encrypted outputs when present", async () => {
+    const requests: string[] = [];
+    const client = new MoonshotOfficialToolClient({
+      apiKey: "test-key",
+      fetchImpl: async (_input, init) => {
+        requests.push(String(init?.body));
+        return new Response(
+          JSON.stringify({
+            status: "succeeded",
+            context: {
+              encrypted_output: "----MOONSHOT ENCRYPTED BEGIN----abc----MOONSHOT ENCRYPTED END----",
+              output: "plain text"
+            }
+          })
+        );
+      }
+    });
+
+    const result = await client.callTool(
+      {
+        name: "web_search",
+        description: "Search the web",
+        kind: "official",
+        formulaUri: "moonshot/web-search:latest",
+        inputSchema: {}
+      },
+      JSON.stringify({ query: "kimicode" })
+    );
+
+    expect(requests).toEqual(['{"name":"web_search","arguments":"{\\"query\\":\\"kimicode\\"}"}']);
+    expect(result).toContain("MOONSHOT ENCRYPTED");
   });
 });

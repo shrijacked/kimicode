@@ -50,6 +50,13 @@ describe("runCli", () => {
       defaultModel: "kimi-k2.6",
       approvalMode: "workspace-write",
       enableBuiltinTools: false,
+      enableOfficialTools: false,
+      officialToolFormulas: [
+        "moonshot/web-search:latest",
+        "moonshot/fetch:latest",
+        "moonshot/date:latest",
+        "moonshot/code_runner:latest"
+      ],
       maxToolSteps: 6
     });
   });

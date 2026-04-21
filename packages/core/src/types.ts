@@ -1,7 +1,7 @@
 export type ApprovalMode = "read-only" | "workspace-write" | "full-auto";
 export type SessionStatus = "active" | "completed" | "errored";
 export type ProviderRole = "system" | "user" | "assistant" | "tool";
-export type ToolKind = "local" | "builtin";
+export type ToolKind = "local" | "builtin" | "official";
 export type ToolChoice = "auto" | "none";
 
 export interface CapabilityFlags {
@@ -11,6 +11,7 @@ export interface CapabilityFlags {
   multimodal: boolean;
   builtinWebSearch: boolean;
   builtinCodeRunner: boolean;
+  officialTools: boolean;
 }
 
 export interface ModelConstraints {
@@ -73,6 +74,7 @@ export interface ToolSpec {
   requiresConfirmation?: boolean;
   destructive?: boolean;
   builtinName?: string;
+  formulaUri?: string;
 }
 
 export interface ProviderRequest {
@@ -193,6 +195,8 @@ export interface KimicodeConfig {
   defaultModel: string;
   approvalMode: ApprovalMode;
   enableBuiltinTools: boolean;
+  enableOfficialTools: boolean;
+  officialToolFormulas: string[];
   maxToolSteps: number;
 }
 

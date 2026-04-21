@@ -8,6 +8,8 @@ const fileSchema = z
     defaultModel: z.string().optional(),
     approvalMode: z.enum(["read-only", "workspace-write", "full-auto"]).optional(),
     enableBuiltinTools: z.boolean().optional(),
+    enableOfficialTools: z.boolean().optional(),
+    officialToolFormulas: z.array(z.string()).optional(),
     maxToolSteps: z.number().int().positive().optional(),
     storageDir: z.string().optional()
   })
@@ -19,6 +21,31 @@ const approvalModeFromEnv = (value: string | undefined): ApprovalMode | undefine
   }
 
   return undefined;
+};
+
+const booleanFromEnv = (value: string | undefined): boolean | undefined => {
+  if (value === "true") {
+    return true;
+  }
+
+  if (value === "false") {
+    return false;
+  }
+
+  return undefined;
+};
+
+const formulasFromEnv = (value: string | undefined): string[] | undefined => {
+  if (!value) {
+    return undefined;
+  }
+
+  const formulas = value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+  return formulas.length > 0 ? formulas : [];
 };
 
 export async function loadKimicodeConfig(cwd = process.cwd()): Promise<KimicodeConfig> {
@@ -44,6 +71,10 @@ export async function loadKimicodeConfig(cwd = process.cwd()): Promise<KimicodeC
     approvalMode:
       approvalModeFromEnv(process.env.KIMICODE_APPROVAL_MODE) ?? fileConfig.approvalMode ?? "workspace-write",
     enableBuiltinTools: fileConfig.enableBuiltinTools ?? false,
+    enableOfficialTools:
+      booleanFromEnv(process.env.KIMICODE_ENABLE_OFFICIAL_TOOLS) ?? fileConfig.enableOfficialTools ?? false,
+    officialToolFormulas:
+      formulasFromEnv(process.env.KIMICODE_OFFICIAL_TOOL_FORMULAS) ?? fileConfig.officialToolFormulas ?? [],
     maxToolSteps: fileConfig.maxToolSteps ?? 6
   };
 }
