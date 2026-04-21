@@ -90,7 +90,14 @@ Environment variables:
 ## Release Notes
 
 - `pnpm verify` runs the build, test, and lint gates together
+- `pnpm pack:dry-run` checks the actual publishable package tarballs locally
+- `pnpm release:check` runs the main verification gate plus package dry-runs
 - `pnpm test:live` runs the gated Moonshot smoke suite and requires `MOONSHOT_API_KEY`
 - publishable packages ship only built artifacts, and `@kimicode/skills-starter` also ships its `skills/` assets
+
+## GitHub Automation
+
+- `.github/workflows/ci.yml` runs `pnpm verify` on pushes and pull requests, then validates publishable tarballs with `pnpm pack:dry-run`
+- `.github/workflows/live-smoke.yml` is a manual workflow that runs the real Moonshot smoke suite when the repository has a `MOONSHOT_API_KEY` secret configured
 
 See [docs/architecture.md](./docs/architecture.md) for the runtime breakdown.

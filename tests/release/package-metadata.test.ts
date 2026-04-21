@@ -25,6 +25,8 @@ describe("package metadata", () => {
     const pkg = JSON.parse(raw) as { scripts?: Record<string, string> };
 
     expect(pkg.scripts?.verify).toBe("pnpm build && pnpm test && pnpm lint");
+    expect(pkg.scripts?.["pack:dry-run"]).toBe("node scripts/pack-dry-run.mjs");
+    expect(pkg.scripts?.["release:check"]).toBe("pnpm verify && pnpm pack:dry-run");
   });
 
   it("keeps publishable packages ready for packaging", async () => {

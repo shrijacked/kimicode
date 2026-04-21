@@ -15,6 +15,12 @@ pnpm verify
 
 `pnpm test:live` is opt-in and requires `MOONSHOT_API_KEY`.
 
+## GitHub Actions
+
+- `CI` runs on pushes and pull requests
+- `Live Smoke` is manual and requires the repository `MOONSHOT_API_KEY` secret
+- run `pnpm release:check` locally before cutting a release or changing publishable package metadata
+
 ## Project standards
 
 - Add tests with new behavior
