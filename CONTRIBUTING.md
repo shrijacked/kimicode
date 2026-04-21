@@ -10,10 +10,10 @@
 
 ```bash
 pnpm install
-pnpm build
-pnpm test
-pnpm lint
+pnpm verify
 ```
+
+`pnpm test:live` is opt-in and requires `MOONSHOT_API_KEY`.
 
 ## Project standards
 

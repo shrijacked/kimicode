@@ -1,12 +1,27 @@
 {
   "name": "kimicode",
   "version": "0.1.0",
+  "description": "Kimi-first coding agent CLI for Moonshot models.",
+  "license": "MIT",
   "type": "module",
   "bin": {
     "kimicode": "dist/index.js"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "kimi",
+    "moonshot",
+    "cli",
+    "coding-agent",
+    "terminal"
+  ],
   "scripts": {
     "build": "tsup src/index.tsx --format esm --dts --out-dir dist --clean",
     "dev": "tsup src/index.tsx --watch --format esm --dts --out-dir dist",

@@ -1,9 +1,27 @@
 {
   "name": "@kimicode/skills-starter",
   "version": "0.1.0",
+  "description": "Starter workflow and slash-command skill pack for Kimicode.",
+  "license": "MIT",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "skills"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --out-dir dist --clean",
     "typecheck": "tsc --noEmit -p tsconfig.json"

@@ -16,7 +16,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:live": "vitest run tests/live",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm -r typecheck",
+    "verify": "pnpm build && pnpm test && pnpm lint"
   },
   "devDependencies": {
     "@eslint/js": "^9.24.0",

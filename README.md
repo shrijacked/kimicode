@@ -41,8 +41,7 @@ flowchart LR
 
 ```bash
 pnpm install
-pnpm build
-pnpm test
+pnpm verify
 ```
 
 ## Commands
@@ -87,5 +86,11 @@ Environment variables:
 - `KIMICODE_MODEL`
 - `KIMICODE_APPROVAL_MODE`
 - `KIMICODE_SESSION_ID`
+
+## Release Notes
+
+- `pnpm verify` runs the build, test, and lint gates together
+- `pnpm test:live` runs the gated Moonshot smoke suite and requires `MOONSHOT_API_KEY`
+- publishable packages ship only built artifacts, and `@kimicode/skills-starter` also ships its `skills/` assets
 
 See [docs/architecture.md](./docs/architecture.md) for the runtime breakdown.
