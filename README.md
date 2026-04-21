@@ -99,5 +99,6 @@ Environment variables:
 
 - `.github/workflows/ci.yml` runs `pnpm verify` on pushes and pull requests, then validates publishable tarballs with `pnpm pack:dry-run`
 - `.github/workflows/live-smoke.yml` is a manual workflow that runs the real Moonshot smoke suite when the repository has a `MOONSHOT_API_KEY` secret configured
+- both workflows opt GitHub JavaScript actions into Node 24 now, so they are ahead of the runner deprecation window
 
 See [docs/architecture.md](./docs/architecture.md) for the runtime breakdown.

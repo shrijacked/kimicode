@@ -9,6 +9,7 @@ describe("GitHub workflows", () => {
     const raw = await readFile(join(root, ".github/workflows/ci.yml"), "utf8");
 
     expect(raw).toContain("name: CI");
+    expect(raw).toContain('FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"');
     expect(raw).toContain("pnpm verify");
     expect(raw).toContain("pnpm pack:dry-run");
     expect(raw).toContain("node:");
@@ -19,6 +20,7 @@ describe("GitHub workflows", () => {
   it("keeps live smoke available as a manual workflow", async () => {
     const raw = await readFile(join(root, ".github/workflows/live-smoke.yml"), "utf8");
 
+    expect(raw).toContain('FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"');
     expect(raw).toContain("workflow_dispatch:");
     expect(raw).toContain("MOONSHOT_API_KEY");
     expect(raw).toContain("pnpm test:live");
