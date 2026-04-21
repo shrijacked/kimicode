@@ -180,4 +180,52 @@ describe("runCli", () => {
       process.env.MOONSHOT_API_KEY = previousApiKey;
     }
   });
+
+  it("enables official tools through the config command", async () => {
+    const cwd = await createTempWorkspace();
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await runCli(["node", "kimicode", "config", "official-tools", "--enable"], { cwd });
+
+    const output = readConsoleOutput(log);
+    expect(output).toContain('"enabled": true');
+
+    const raw = await readFile(join(cwd, "kimicode.config.json"), "utf8");
+    expect(JSON.parse(raw)).toMatchObject({
+      enableOfficialTools: true
+    });
+  });
+
+  it("adds and removes official tool formulas through the config command", async () => {
+    const cwd = await createTempWorkspace();
+    await writeFile(
+      join(cwd, "kimicode.config.json"),
+      JSON.stringify(
+        {
+          defaultModel: "kimi-k2.6",
+          approvalMode: "workspace-write",
+          enableBuiltinTools: false,
+          enableOfficialTools: true,
+          officialToolFormulas: ["moonshot/web-search:latest"],
+          maxToolSteps: 6
+        },
+        null,
+        2
+      ),
+      "utf8"
+    );
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await runCli(["node", "kimicode", "config", "official-tools", "--add-formula", "fetch"], { cwd });
+    await runCli(["node", "kimicode", "config", "official-tools", "--remove-formula", "web-search"], { cwd });
+
+    const raw = await readFile(join(cwd, "kimicode.config.json"), "utf8");
+    expect(JSON.parse(raw)).toMatchObject({
+      enableOfficialTools: true,
+      officialToolFormulas: ["moonshot/fetch:latest"]
+    });
+
+    const output = readConsoleOutput(log);
+    expect(output).toContain("moonshot/fetch:latest");
+  });
 });

@@ -32,6 +32,13 @@ interface RuntimeState {
   error?: string;
 }
 
+const DEFAULT_OFFICIAL_TOOL_FORMULAS = [
+  "moonshot/web-search:latest",
+  "moonshot/fetch:latest",
+  "moonshot/date:latest",
+  "moonshot/code_runner:latest"
+] as const;
+
 export interface CliContext {
   cwd?: string;
   interactivePrompt?: () => Promise<string>;
@@ -95,17 +102,49 @@ const buildConfigTemplate = (): string =>
       approvalMode: "workspace-write",
       enableBuiltinTools: false,
       enableOfficialTools: false,
-      officialToolFormulas: [
-        "moonshot/web-search:latest",
-        "moonshot/fetch:latest",
-        "moonshot/date:latest",
-        "moonshot/code_runner:latest"
-      ],
+      officialToolFormulas: DEFAULT_OFFICIAL_TOOL_FORMULAS,
       maxToolSteps: 6
     },
     null,
     2
   );
+
+const normalizeOfficialToolFormula = (value: string): string => {
+  let normalized = value.trim();
+
+  if (!normalized.includes("/")) {
+    normalized = `moonshot/${normalized}`;
+  }
+
+  if (!normalized.includes(":")) {
+    normalized = `${normalized}:latest`;
+  }
+
+  return normalized;
+};
+
+async function readProjectConfig(cwd?: string): Promise<Record<string, unknown>> {
+  const config = await loadKimicodeConfig(cwd);
+  const configPath = join(config.cwd, "kimicode.config.json");
+
+  try {
+    const raw = await readFile(configPath, "utf8");
+    return JSON.parse(raw) as Record<string, unknown>;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw error;
+    }
+
+    return JSON.parse(buildConfigTemplate()) as Record<string, unknown>;
+  }
+}
+
+async function writeProjectConfig(cwd: string, payload: Record<string, unknown>): Promise<string> {
+  const configPath = join(cwd, "kimicode.config.json");
+  await mkdir(dirname(configPath), { recursive: true });
+  await writeFile(configPath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+  return configPath;
+}
 
 async function ensureConfigFile(force = false, cwd?: string): Promise<string> {
   const config = await loadKimicodeConfig(cwd);
@@ -284,6 +323,55 @@ async function printConfig(cwd?: string): Promise<void> {
   console.log(JSON.stringify(config, null, 2));
 }
 
+async function updateOfficialToolsConfig(
+  options: {
+    enable?: boolean;
+    disable?: boolean;
+    addFormula?: string;
+    removeFormula?: string;
+  },
+  cwd?: string
+): Promise<void> {
+  const config = await loadKimicodeConfig(cwd);
+  const fileConfig = await readProjectConfig(config.cwd);
+  const currentFormulas = Array.isArray(fileConfig.officialToolFormulas)
+    ? (fileConfig.officialToolFormulas as string[])
+    : [...DEFAULT_OFFICIAL_TOOL_FORMULAS];
+  const formulas = new Set(currentFormulas.map(normalizeOfficialToolFormula));
+
+  if (options.addFormula) {
+    formulas.add(normalizeOfficialToolFormula(options.addFormula));
+  }
+
+  if (options.removeFormula) {
+    formulas.delete(normalizeOfficialToolFormula(options.removeFormula));
+  }
+
+  const next = {
+    ...fileConfig,
+    defaultModel: String(fileConfig.defaultModel ?? config.defaultModel),
+    approvalMode: String(fileConfig.approvalMode ?? config.approvalMode),
+    enableBuiltinTools: Boolean(fileConfig.enableBuiltinTools ?? config.enableBuiltinTools),
+    enableOfficialTools:
+      options.enable ? true : options.disable ? false : Boolean(fileConfig.enableOfficialTools ?? config.enableOfficialTools),
+    officialToolFormulas: [...formulas],
+    maxToolSteps: Number(fileConfig.maxToolSteps ?? config.maxToolSteps)
+  };
+
+  await writeProjectConfig(config.cwd, next);
+
+  console.log(
+    JSON.stringify(
+      {
+        enabled: next.enableOfficialTools,
+        officialToolFormulas: next.officialToolFormulas
+      },
+      null,
+      2
+    )
+  );
+}
+
 async function printTools(resolveOfficial: boolean, context: CliContext = {}): Promise<void> {
   const config = await loadKimicodeConfig(context.cwd);
   const manager = new ToolManager(config);
@@ -433,19 +521,47 @@ function createCli(context: CliContext = {}) {
   cli
     .command("config [action]", "Print effective configuration or initialize a project config")
     .option("--force", "Overwrite an existing config file")
-    .action(async (action: string | undefined, options: { force?: boolean }) => {
+    .option("--enable", "Enable the selected config surface")
+    .option("--disable", "Disable the selected config surface")
+    .option("--add-formula <formula>", "Add an official tool formula")
+    .option("--remove-formula <formula>", "Remove an official tool formula")
+    .action(
+      async (
+        action: string | undefined,
+        options: {
+          force?: boolean;
+          enable?: boolean;
+          disable?: boolean;
+          addFormula?: string;
+          removeFormula?: string;
+        }
+      ) => {
       if (!action) {
         await printConfig(context.cwd);
         return;
       }
 
       if (action !== "init") {
-        throw new Error(`Unknown config action: ${action}`);
+        if (action !== "official-tools") {
+          throw new Error(`Unknown config action: ${action}`);
+        }
+
+        await updateOfficialToolsConfig(
+          {
+            enable: options.enable,
+            disable: options.disable,
+            addFormula: options.addFormula,
+            removeFormula: options.removeFormula
+          },
+          context.cwd
+        );
+        return;
       }
 
       const configPath = await ensureConfigFile(Boolean(options.force), context.cwd);
       console.log(`Wrote ${configPath}`);
-    });
+      }
+    );
 
   cli
     .command("export [sessionId] [outputPath]", "Export a saved session transcript")

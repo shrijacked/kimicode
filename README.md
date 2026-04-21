@@ -57,6 +57,8 @@ pnpm verify
 - `kimicode tools`
 - `kimicode config`
 - `kimicode config init`
+- `kimicode config official-tools --enable`
+- `kimicode config official-tools --add-formula fetch`
 - `kimicode export [session-id] [output-path]`
 
 Slash commands inside the prompt surface:
@@ -97,6 +99,7 @@ Environment variables:
 - Formula URIs are configured with `officialToolFormulas`
 - `kimicode config init` seeds a starter list for `web-search`, `fetch`, `date`, and `code_runner`
 - `kimicode tools` shows the local tool surface immediately, and `kimicode tools --resolve-official` resolves configured official tools through the live API
+- `kimicode config official-tools` manages the opt-in flag and formula list without editing JSON manually
 - Built-in `$web_search` is still model-aware and filtered automatically when thinking-mode rules would reject it
 
 ## Release Notes
