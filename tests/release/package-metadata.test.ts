@@ -26,7 +26,10 @@ describe("package metadata", () => {
 
     expect(pkg.scripts?.verify).toBe("pnpm build && pnpm test && pnpm lint");
     expect(pkg.scripts?.["pack:dry-run"]).toBe("node scripts/pack-dry-run.mjs");
+    expect(pkg.scripts?.["publish:packages"]).toBe("node scripts/publish-packages.mjs");
     expect(pkg.scripts?.["release:check"]).toBe("pnpm verify && pnpm pack:dry-run");
+    expect(pkg.scripts?.["release:tag"]).toBe("node scripts/release-tag.mjs");
+    expect(pkg.scripts?.["release:version"]).toBe("node scripts/release-version.mjs");
   });
 
   it("keeps publishable packages ready for packaging", async () => {

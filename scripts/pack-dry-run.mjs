@@ -15,16 +15,12 @@ const packages = [
   "packages/testkit"
 ];
 
-const cacheDir = mkdtempSync(join(tmpdir(), "kimicode-npm-cache-"));
+const packDir = mkdtempSync(join(tmpdir(), "kimicode-pack-"));
 
 for (const packagePath of packages) {
   const cwd = resolve(root, packagePath);
-  const result = spawnSync("npm", ["pack", "--json", "--dry-run"], {
+  const result = spawnSync("pnpm", ["pack", "--json", "--pack-destination", packDir], {
     cwd,
-    env: {
-      ...process.env,
-      npm_config_cache: cacheDir
-    },
     encoding: "utf8"
   });
 
@@ -34,9 +30,29 @@ for (const packagePath of packages) {
     throw new Error(`npm pack dry-run failed for ${packagePath}`);
   }
 
-  const parsed = JSON.parse(result.stdout);
-  const summary = parsed[0];
+  const summary = JSON.parse(result.stdout);
+  const manifest = spawnSync("tar", ["-xOf", summary.filename, "package/package.json"], {
+    encoding: "utf8"
+  });
+
+  if (manifest.status !== 0) {
+    process.stderr.write(manifest.stdout || "");
+    process.stderr.write(manifest.stderr || "");
+    throw new Error(`failed to inspect packed manifest for ${packagePath}`);
+  }
+
+  const packedPackage = JSON.parse(manifest.stdout);
+  const workspaceDependencies = [
+    ...Object.entries(packedPackage.dependencies ?? {}),
+    ...Object.entries(packedPackage.optionalDependencies ?? {}),
+    ...Object.entries(packedPackage.peerDependencies ?? {})
+  ].filter(([, version]) => typeof version === "string" && version.startsWith("workspace:"));
+
+  if (workspaceDependencies.length > 0) {
+    throw new Error(`workspace protocol dependencies leaked into the packed manifest for ${packagePath}`);
+  }
+
   process.stdout.write(
-    `${summary.name}@${summary.version}: ${summary.entryCount} files, unpacked ${summary.unpackedSize} bytes\n`
+    `${summary.name}@${summary.version}: ${summary.files.length} files, packed manifest verified\n`
   );
 }

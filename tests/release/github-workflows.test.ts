@@ -25,4 +25,17 @@ describe("GitHub workflows", () => {
     expect(raw).toContain("MOONSHOT_API_KEY");
     expect(raw).toContain("pnpm test:live");
   });
+
+  it("keeps release automation ready for tags and manual runs", async () => {
+    const raw = await readFile(join(root, ".github/workflows/release.yml"), "utf8");
+
+    expect(raw).toContain("name: Release");
+    expect(raw).toContain('FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"');
+    expect(raw).toContain('      - "v*"');
+    expect(raw).toContain("workflow_dispatch:");
+    expect(raw).toContain("pnpm release:check");
+    expect(raw).toContain("pnpm publish:packages");
+    expect(raw).toContain("gh release create");
+    expect(raw).toContain("NPM_TOKEN");
+  });
 });

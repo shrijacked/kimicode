@@ -8,11 +8,13 @@ Kimicode is split into a small set of packages so the provider, runtime, tools, 
 flowchart TD
   CLI["kimicode CLI"] --> CORE["Core runtime"]
   CORE --> PROVIDER["Moonshot provider"]
+  PROVIDER --> OFFICIAL["Official tool client"]
   CORE --> STORE["Session store"]
   CORE --> INDEX["SQLite index"]
   CORE --> TOOLS["Tool manager"]
   CORE --> SKILLS["Starter skills"]
   PROVIDER --> API["Moonshot chat completions API"]
+  OFFICIAL --> FORMULAS["Moonshot formulas API"]
   TOOLS --> FS["Filesystem + shell"]
 ```
 
@@ -21,7 +23,7 @@ flowchart TD
 - `apps/kimicode-cli`: public commands and TUI rendering
 - `packages/core`: model registry, config loading, session lifecycle, transcript persistence, slash commands
 - `packages/provider-moonshot`: Moonshot adapter and Kimi request shaping
-- `packages/tools`: local tool registry, approval policy, shell and file operations
+- `packages/tools`: local tool registry, approval policy, shell and file operations, plus optional official-tool passthrough
 - `packages/skills-starter`: starter slash-command and skill metadata
 - `packages/testkit`: fake provider helpers for golden and contract tests
 
@@ -41,3 +43,4 @@ The transcript is the source of truth. The SQLite index makes listing and resumi
 - `kimicode config init` writes a starter project config without requiring an API key
 - `kimicode export [session-id] [output-path]` emits a serialized session snapshot plus its full transcript
 - Slash commands are routed before provider execution so local commands like `/status` and `/model` work without hitting the API
+- When `enableOfficialTools` is on, the CLI loads formula-backed Moonshot tools once per run and feeds them through the same tool loop as local tools

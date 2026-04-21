@@ -9,6 +9,7 @@ It is built as a clean-room, public OSS project around Moonshot's documented API
 - Default model: `kimi-k2.6`
 - Future Kimi models land through a model registry, not core rewrites
 - Local coding tools are first-class, with approval modes for read-only, workspace-write, and full-auto
+- Moonshot official tools can be enabled explicitly, with formula-backed tools loaded from the live API
 - Session transcripts are append-only JSONL for replay and debugging
 - Session metadata is indexed in SQLite for fast resume and search
 
@@ -85,13 +86,25 @@ Environment variables:
 - `MOONSHOT_API_KEY`
 - `KIMICODE_MODEL`
 - `KIMICODE_APPROVAL_MODE`
+- `KIMICODE_ENABLE_OFFICIAL_TOOLS`
+- `KIMICODE_OFFICIAL_TOOL_FORMULAS`
 - `KIMICODE_SESSION_ID`
+
+## Official tools
+
+- Official Moonshot tools stay opt-in through `enableOfficialTools`
+- Formula URIs are configured with `officialToolFormulas`
+- `kimicode config init` seeds a starter list for `web-search`, `fetch`, `date`, and `code_runner`
+- Built-in `$web_search` is still model-aware and filtered automatically when thinking-mode rules would reject it
 
 ## Release Notes
 
 - `pnpm verify` runs the build, test, and lint gates together
 - `pnpm pack:dry-run` checks the actual publishable package tarballs locally
+- `pnpm publish:packages --dry-run` runs the offline publish sequence in dependency order
 - `pnpm release:check` runs the main verification gate plus package dry-runs
+- `pnpm release:version patch` bumps the workspace version and rolls the changelog
+- `pnpm release:tag --dry-run` previews the next release tag without mutating git
 - `pnpm test:live` runs the gated Moonshot smoke suite and requires `MOONSHOT_API_KEY`
 - publishable packages ship only built artifacts, and `@kimicode/skills-starter` also ships its `skills/` assets
 
@@ -99,6 +112,7 @@ Environment variables:
 
 - `.github/workflows/ci.yml` runs `pnpm verify` on pushes and pull requests, then validates publishable tarballs with `pnpm pack:dry-run`
 - `.github/workflows/live-smoke.yml` is a manual workflow that runs the real Moonshot smoke suite when the repository has a `MOONSHOT_API_KEY` secret configured
+- `.github/workflows/release.yml` runs `pnpm release:check`, publishes packages when `NPM_TOKEN` is configured, and creates GitHub releases for `v*` tags
 - both workflows opt GitHub JavaScript actions into Node 24 now, so they are ahead of the runner deprecation window
 
 ## Community
@@ -108,3 +122,5 @@ Environment variables:
 - GitHub issue and PR templates are checked into `.github/` so public contributions start with the right context
 
 See [docs/architecture.md](./docs/architecture.md) for the runtime breakdown.
+
+Release steps live in [docs/releasing.md](./docs/releasing.md).
