@@ -54,6 +54,7 @@ pnpm verify
 - `kimicode resume <session-id> --continue "take the next step"`
 - `kimicode models`
 - `kimicode doctor`
+- `kimicode tools`
 - `kimicode config`
 - `kimicode config init`
 - `kimicode export [session-id] [output-path]`
@@ -95,6 +96,7 @@ Environment variables:
 - Official Moonshot tools stay opt-in through `enableOfficialTools`
 - Formula URIs are configured with `officialToolFormulas`
 - `kimicode config init` seeds a starter list for `web-search`, `fetch`, `date`, and `code_runner`
+- `kimicode tools` shows the local tool surface immediately, and `kimicode tools --resolve-official` resolves configured official tools through the live API
 - Built-in `$web_search` is still model-aware and filtered automatically when thinking-mode rules would reject it
 
 ## Release Notes

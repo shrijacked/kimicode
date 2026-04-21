@@ -11,7 +11,9 @@ import {
   ModelRegistry,
   SessionManager,
   loadKimicodeConfig,
+  type KimicodeConfig,
   type ApprovalRequest,
+  type ToolSpec,
   type TranscriptEvent
 } from "@kimicode/core";
 import { MoonshotOfficialToolClient, MoonshotProvider } from "@kimicode/provider-moonshot";
@@ -34,6 +36,7 @@ export interface CliContext {
   cwd?: string;
   interactivePrompt?: () => Promise<string>;
   approvalPrompter?: (request: ApprovalRequest) => Promise<boolean>;
+  loadOfficialTools?: (formulaUris: string[], apiKey: string) => Promise<ToolSpec[]>;
 }
 
 const createApprovalPrompter = async (request: ApprovalRequest): Promise<boolean> => {
@@ -63,6 +66,26 @@ async function runInteractivePrompt(): Promise<string> {
   const prompt = await rl.question("Task> ");
   rl.close();
   return prompt.trim();
+}
+
+async function loadOfficialTools(
+  config: KimicodeConfig,
+  context: CliContext,
+  apiKey: string
+): Promise<ToolSpec[]> {
+  if (!config.enableOfficialTools || config.officialToolFormulas.length === 0) {
+    return [];
+  }
+
+  if (context.loadOfficialTools) {
+    return context.loadOfficialTools(config.officialToolFormulas, apiKey);
+  }
+
+  const officialToolClient = new MoonshotOfficialToolClient({
+    apiKey
+  });
+
+  return officialToolClient.loadTools(config.officialToolFormulas);
 }
 
 const buildConfigTemplate = (): string =>
@@ -138,9 +161,7 @@ async function executePrompt(prompt: string, options: ExecutePromptOptions = {},
   const officialToolClient = new MoonshotOfficialToolClient({
     apiKey
   });
-  const officialTools = config.enableOfficialTools
-    ? await officialToolClient.loadTools(config.officialToolFormulas)
-    : [];
+  const officialTools = await loadOfficialTools(config, context, apiKey);
   const tools = new ToolManager(config, {
     officialTools,
     executeOfficialTool: async (spec, rawArguments) => officialToolClient.callTool(spec, rawArguments)
@@ -263,6 +284,34 @@ async function printConfig(cwd?: string): Promise<void> {
   console.log(JSON.stringify(config, null, 2));
 }
 
+async function printTools(resolveOfficial: boolean, context: CliContext = {}): Promise<void> {
+  const config = await loadKimicodeConfig(context.cwd);
+  const manager = new ToolManager(config);
+  let resolvedOfficial: Array<{ name: string; formulaUri?: string }> | null = null;
+
+  if (resolveOfficial) {
+    const apiKey = requireApiKey();
+    const officialTools = await loadOfficialTools(config, context, apiKey);
+    resolvedOfficial = officialTools.map((tool) => ({
+      name: tool.name,
+      formulaUri: tool.formulaUri
+    }));
+  }
+
+  const toolSpecs = manager.listToolSpecs();
+  const record = {
+    localTools: toolSpecs.filter((tool) => tool.kind === "local").map((tool) => tool.name),
+    builtinTools: toolSpecs.filter((tool) => tool.kind === "builtin").map((tool) => tool.name),
+    officialTools: {
+      enabled: config.enableOfficialTools,
+      formulas: config.officialToolFormulas,
+      resolved: resolvedOfficial
+    }
+  };
+
+  console.log(JSON.stringify(record, null, 2));
+}
+
 async function printResume(sessionId?: string, cwd?: string): Promise<void> {
   const config = await loadKimicodeConfig(cwd);
   const sessions = await SessionManager.create(config);
@@ -373,6 +422,13 @@ function createCli(context: CliContext = {}) {
   cli.command("doctor", "Inspect local configuration and environment").action(async () => {
     await printDoctor(context.cwd);
   });
+
+  cli
+    .command("tools", "Inspect local, builtin, and official tool surfaces")
+    .option("--resolve-official", "Resolve configured official tools through the Moonshot API")
+    .action(async (options: { resolveOfficial?: boolean }) => {
+      await printTools(Boolean(options.resolveOfficial), context);
+    });
 
   cli
     .command("config [action]", "Print effective configuration or initialize a project config")

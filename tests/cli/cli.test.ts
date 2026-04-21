@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import process from "node:process";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -82,6 +82,100 @@ describe("runCli", () => {
       const output = readConsoleOutput(log);
       expect(output).toContain('"sessionCount": 0');
       expect(output).toContain('"command": "/review"');
+    } finally {
+      process.env.MOONSHOT_API_KEY = previousApiKey;
+    }
+  });
+
+  it("lists configured tool surfaces without requiring the API", async () => {
+    const cwd = await createTempWorkspace();
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await runCli(["node", "kimicode", "tools"], { cwd });
+
+    const output = readConsoleOutput(log);
+    const tools = JSON.parse(output) as {
+      builtinTools: string[];
+      localTools: string[];
+      officialTools: {
+        enabled: boolean;
+        formulas: string[];
+        resolved: null | Array<{ name: string; formulaUri?: string }>;
+      };
+    };
+
+    expect(tools.localTools).toContain("read_file");
+    expect(tools.builtinTools).toEqual([]);
+    expect(tools.officialTools.enabled).toBe(false);
+    expect(tools.officialTools.formulas).toHaveLength(0);
+    expect(tools.officialTools.resolved).toBe(null);
+  });
+
+  it("resolves official tools when explicitly requested", async () => {
+    const cwd = await createTempWorkspace();
+    const previousApiKey = process.env.MOONSHOT_API_KEY;
+    process.env.MOONSHOT_API_KEY = "test-key";
+
+    try {
+      await writeFile(
+        join(cwd, "kimicode.config.json"),
+        JSON.stringify(
+          {
+            defaultModel: "kimi-k2.6",
+            approvalMode: "workspace-write",
+            enableBuiltinTools: false,
+            enableOfficialTools: true,
+            officialToolFormulas: [
+              "moonshot/web-search:latest",
+              "moonshot/fetch:latest",
+              "moonshot/date:latest",
+              "moonshot/code_runner:latest"
+            ],
+            maxToolSteps: 6
+          },
+          null,
+          2
+        ),
+        "utf8"
+      );
+      const log = vi.spyOn(console, "log").mockImplementation(() => {});
+      await runCli(["node", "kimicode", "tools", "--resolve-official"], {
+        cwd,
+        loadOfficialTools: async (formulaUris) => [
+          {
+            name: "web_search",
+            description: "Search the web",
+            kind: "official",
+            formulaUri: formulaUris[0],
+            inputSchema: {
+              type: "object",
+              properties: {}
+            }
+          }
+        ]
+      });
+
+      const output = readConsoleOutput(log);
+      const tools = JSON.parse(output) as {
+        officialTools: {
+          enabled: boolean;
+          formulas: string[];
+          resolved: Array<{ name: string; formulaUri?: string }>;
+        };
+      };
+
+      expect(tools.officialTools.formulas).toEqual([
+        "moonshot/web-search:latest",
+        "moonshot/fetch:latest",
+        "moonshot/date:latest",
+        "moonshot/code_runner:latest"
+      ]);
+      expect(tools.officialTools.resolved).toEqual([
+        {
+          name: "web_search",
+          formulaUri: "moonshot/web-search:latest"
+        }
+      ]);
     } finally {
       process.env.MOONSHOT_API_KEY = previousApiKey;
     }
