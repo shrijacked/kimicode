@@ -101,4 +101,10 @@ Environment variables:
 - `.github/workflows/live-smoke.yml` is a manual workflow that runs the real Moonshot smoke suite when the repository has a `MOONSHOT_API_KEY` secret configured
 - both workflows opt GitHub JavaScript actions into Node 24 now, so they are ahead of the runner deprecation window
 
+## Community
+
+- Security reporting guidelines live in [SECURITY.md](./SECURITY.md)
+- Contributor behavior expectations live in [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)
+- GitHub issue and PR templates are checked into `.github/` so public contributions start with the right context
+
 See [docs/architecture.md](./docs/architecture.md) for the runtime breakdown.

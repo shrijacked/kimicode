@@ -21,6 +21,12 @@ pnpm verify
 - `Live Smoke` is manual and requires the repository `MOONSHOT_API_KEY` secret
 - run `pnpm release:check` locally before cutting a release or changing publishable package metadata
 
+## Community Files
+
+- `SECURITY.md` covers vulnerability and secret-reporting expectations
+- `CODE_OF_CONDUCT.md` sets contributor behavior expectations
+- `.github/ISSUE_TEMPLATE/` and `.github/pull_request_template.md` keep public reports and PRs structured
+
 ## Project standards
 
 - Add tests with new behavior
