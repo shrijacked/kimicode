@@ -93,4 +93,68 @@ describe("MoonshotProvider", () => {
       "Built-in web search was disabled for kimi-k2.6 because the selected model expects thinking mode to be disabled when using $web_search."
     ]);
   });
+
+  it("includes Moonshot API error details for failed completions", async () => {
+    const registry = new ModelRegistry();
+    const provider = new MoonshotProvider({
+      apiKey: "bad-key",
+      fetchImpl: async () =>
+        new Response(
+          JSON.stringify({
+            error: {
+              message: "Invalid API key",
+              type: "authentication_error"
+            }
+          }),
+          {
+            status: 401,
+            statusText: "Unauthorized",
+            headers: {
+              "Content-Type": "application/json"
+            }
+          }
+        )
+    });
+
+    await expect(
+      provider.complete({
+        model: registry.defaultModel(),
+        messages: [{ role: "user", content: "Hi" }]
+      })
+    ).rejects.toThrow("Moonshot request failed with 401 Unauthorized: Invalid API key");
+  });
+
+  it("includes Moonshot API error details for failed streaming requests", async () => {
+    const registry = new ModelRegistry();
+    const provider = new MoonshotProvider({
+      apiKey: "bad-key",
+      fetchImpl: async () =>
+        new Response(
+          JSON.stringify({
+            error: {
+              message: "Invalid API key",
+              type: "authentication_error"
+            }
+          }),
+          {
+            status: 401,
+            statusText: "Unauthorized",
+            headers: {
+              "Content-Type": "application/json"
+            }
+          }
+        )
+    });
+
+    const collect = async (): Promise<void> => {
+      for await (const _chunk of provider.stream({
+        model: registry.defaultModel(),
+        messages: [{ role: "user", content: "Hi" }]
+      })) {
+        void _chunk;
+      }
+    };
+
+    await expect(collect()).rejects.toThrow("Moonshot streaming request failed with 401 Unauthorized: Invalid API key");
+  });
 });

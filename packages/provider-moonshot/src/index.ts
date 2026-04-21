@@ -41,6 +41,14 @@ interface MoonshotCompletionResponse {
   };
 }
 
+interface MoonshotErrorResponse {
+  error?: {
+    message?: string;
+    type?: string;
+    code?: string;
+  };
+}
+
 const encodeContent = (content: string | ContentPart[]): string | Array<Record<string, unknown>> => {
   if (typeof content === "string") {
     return content;
@@ -198,6 +206,27 @@ const buildRequestBody = (request: ProviderRequest): { body: Record<string, unkn
   };
 };
 
+const describeFailedResponse = async (response: Response, prefix: string): Promise<never> => {
+  let detail = "";
+
+  try {
+    const contentType = response.headers.get("content-type") ?? "";
+
+    if (contentType.includes("application/json")) {
+      const payload = (await response.json()) as MoonshotErrorResponse;
+      detail = payload.error?.message?.trim() ?? "";
+    } else {
+      detail = (await response.text()).trim();
+    }
+  } catch {
+    detail = "";
+  }
+
+  const statusText = response.statusText ? ` ${response.statusText}` : "";
+  const suffix = detail ? `: ${detail}` : "";
+  throw new Error(`${prefix} ${response.status}${statusText}${suffix}`);
+};
+
 async function* parseSseStream(response: Response): AsyncIterable<ProviderStreamChunk> {
   if (!response.body) {
     throw new Error("Moonshot streaming response did not include a body.");
@@ -329,7 +358,7 @@ export class MoonshotProvider implements ProviderAdapter {
     });
 
     if (!response.ok) {
-      throw new Error(`Moonshot request failed with ${response.status}`);
+      await describeFailedResponse(response, "Moonshot request failed with");
     }
 
     const payload = (await response.json()) as MoonshotCompletionResponse;
@@ -399,7 +428,7 @@ export class MoonshotProvider implements ProviderAdapter {
     });
 
     if (!response.ok) {
-      throw new Error(`Moonshot streaming request failed with ${response.status}`);
+      await describeFailedResponse(response, "Moonshot streaming request failed with");
     }
 
     yield* parseSseStream(response);

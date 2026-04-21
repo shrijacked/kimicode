@@ -139,3 +139,34 @@ describe.skipIf(!maybeApiKey)("live Moonshot smoke", () => {
     expect(resumed?.messages.length).toBeGreaterThanOrEqual(5);
   }, 60_000);
 });
+
+describe("MoonshotProvider error diagnostics", () => {
+  it("surfaces provider error details when authentication fails", async () => {
+    const registry = new ModelRegistry();
+    const provider = new MoonshotProvider({
+      apiKey: "bad-key",
+      fetchImpl: async () =>
+        new Response(
+          JSON.stringify({
+            error: {
+              message: "Invalid API key"
+            }
+          }),
+          {
+            status: 401,
+            statusText: "Unauthorized",
+            headers: {
+              "Content-Type": "application/json"
+            }
+          }
+        )
+    });
+
+    await expect(
+      provider.complete({
+        model: registry.defaultModel(),
+        messages: [{ role: "user", content: "Reply with exactly ok" }]
+      })
+    ).rejects.toThrow("Moonshot request failed with 401 Unauthorized: Invalid API key");
+  });
+});
